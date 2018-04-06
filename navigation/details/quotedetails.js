@@ -269,6 +269,40 @@ const bikeDetails = async (page, db, scrapeId, inputRange) => {
         vehicleDropdown: '#ctl00_cphBody_qsVehicleSelection_qConfirmVehicleDontKnowReg_cboAnswer'
     }
 
+    const bikeDetailsOptions = {
+        manufactureYear: {
+            from: '1900',
+            to: '2018'
+        },
+        engineSize: {
+            isElectric: [
+                true,
+                false
+            ],
+            engineCC: {
+                from: '1',
+                to: '3000'
+            }
+        }
+    };
+
+    // const bikeDetailsOptions = {
+    //     manufactureYear: {
+    //         from: '2014',//'1900',
+    //         to: '2018'
+    //     },
+    //     engineSize: {
+    //         isElectric: [
+    //             true,
+    //             false
+    //         ],
+    //         engineCC: {
+    //             from: '123',//'1',
+    //             to: '125' //'3000'
+    //         }
+    //     }
+    // };
+
     const selectMake = async (page, selector, bikeMake) => {
         const options = await utils.helpers.getOptions(page, selector)
 
@@ -294,7 +328,7 @@ const bikeDetails = async (page, db, scrapeId, inputRange) => {
         }
 
         await page.select(selector, brand.value);
-    }
+    };
 
     const selectBike = async (page, selector, bike, manufactureYear) => {
         const options = await utils.helpers.getOptions(page, selector);
@@ -310,6 +344,42 @@ const bikeDetails = async (page, db, scrapeId, inputRange) => {
         }
 
         await page.select(selector, match.value);
+    };
+
+    const getManufacturers = async (page, selector) => {
+        const manufacturersRaw = await utils.helpers.getOptions(page, selectors.bikeMake);
+
+        return manufacturersRaw.filter((manufacturer, index) => {
+            if (!index || !manufacturer.value) {
+                return
+            }
+
+            return manufacturer;
+        });
+    };
+
+    const getNumberList = (fromRaw, toRaw) => {
+        let from;
+        let to;
+        const list = [];
+
+        if (typeof fromRaw === 'string') {
+            from = parseInt(fromRaw);
+        } else {
+            from = fromRaw;
+        }
+
+        if (typeof toRaw === 'string') {
+            to = parseInt(toRaw);
+        } else {
+            to = toRaw;
+        }
+
+        for (let i = 0; i <= (to - from); i++) {
+            list.push(`${from + i}`);
+        }
+
+        return list;
     }
 
     if (inputRange.knowRegNumber) {
@@ -318,28 +388,115 @@ const bikeDetails = async (page, db, scrapeId, inputRange) => {
         await page.click(selectors.knowRegNumber.no);
     }
 
-    await selectMake(page, selectors.bikeMake, inputRange.bikeMake);
-
-    await utils.helpers.typeClean(
-        page,
-        selectors.manufactureYear,
-        inputRange.manufactureYear
+    const manufactureYearList = getNumberList(
+        bikeDetailsOptions.manufactureYear.from,
+        bikeDetailsOptions.manufactureYear.to
     );
 
-    if (inputRange.engineSize.isElectric) {
-        await page.click(selectors.engineSize.isElectric);
-    } else {
-        await utils.helpers.typeClean(
+    const engineCCList = getNumberList(
+        bikeDetailsOptions.engineSize.engineCC.from,
+        bikeDetailsOptions.engineSize.engineCC.to
+    );
+
+    const getBikes = async (
+        page,
+        {
+            findVehicleButton,
+            vehicleDropdown
+        }
+    ) => {
+        await page.click(findVehicleButton);
+        await utils.timing.loaded(page);
+
+        const vehicleList = await utils.helpers.getOptions(
             page,
-            selectors.engineSize.engineCC,
-            inputRange.engineSize.engineCC
+            vehicleDropdown
         );
+
+        return vehicleList.filter((vehicle, index) => {
+            if (!index) {
+                return
+            }
+
+            return vehicle;
+        });
+    };
+
+    const flatten = (messyList) => {
+        const cleanList = [];
+
+        for (let messyItem of messyList) {
+            if (messyItem.length) {
+                for (let item of messyItem) {
+                    cleanList.push(item);
+                }
+            }
+        }
+
+        return cleanList;
     }
 
-    await page.click(selectors.findVehicleButton);
-    await utils.timing.loaded(page);
+    bikeDetailsOptions.bikeMake = await getManufacturers(page, selectors.bikeMake);
+    for (let manufacturer of bikeDetailsOptions.bikeMake) {
+        let bikesTemp = [];
 
-    await selectBike(page, selectors.vehicleDropdown, inputRange.bike);
+        await selectMake(page, selectors.bikeMake, manufacturer.text);
+
+        for (let manufactureYear of manufactureYearList) {
+            await utils.helpers.typeClean(
+                page,
+                selectors.manufactureYear,
+                manufactureYear
+            );
+
+            for (let electric of bikeDetailsOptions.engineSize.isElectric) {
+                const isSelected = await page.evaluate((selector) => {
+                    const element = document.querySelector(selector);
+                    return element.checked;
+                }, selectors.engineSize.isElectric);
+            
+                if (electric && !isSelected) {
+                    await page.click(selectors.engineSize.isElectric);
+                } else if (!electric && isSelected) {
+                    await page.click(selectors.engineSize.isElectric);
+                }
+
+                if (electric) {
+                    bikesTemp.push(await getBikes(
+                        page,
+                        {
+                            vehicleDropdown: selectors.vehicleDropdown,
+                            findVehicleButton: selectors.findVehicleButton
+                        }
+                    ));
+                } else {
+                    for (let engineCC of engineCCList) {
+                        await utils.helpers.typeClean(
+                            page,
+                            selectors.engineSize.engineCC,
+                            engineCC
+                        );
+
+                        bikesTemp.push(await getBikes(
+                            page,
+                            {
+                                vehicleDropdown: selectors.vehicleDropdown,
+                                findVehicleButton: selectors.findVehicleButton
+                            }
+                        ));
+                    }
+                }
+            }
+        }
+
+        bikeDetailsOptions.bikes.push({
+            brand: manufacturer,
+            bikes: flatten(bikesTemp)
+        })
+        
+    }
+
+    return bikeDetailsOptions;
 };
 
 const coverDetails = async (page, db, scrapeId, inputRange) => {
@@ -371,6 +528,15 @@ const coverDetails = async (page, db, scrapeId, inputRange) => {
         selectors.bikeUse,
         inputRange.bikeUse.value
     );
+
+    const coverDetailsOptions = {
+        coverType: await utils.helpers.getOptions(page, selectors.coverType),
+        bikeNoClaims: await utils.helpers.getOptions(page, selectors.bikeNoClaims),
+        ridersCount: await utils.helpers.getOptions(page, selectors.ridersCount),
+        bikeUse: await utils.helpers.getOptions(page, selectors.bikeUse)
+    };
+
+    return coverDetailsOptions;
 };
 
 const quoteDetails = async (page, db, scrapeId, continueToNext) => {
@@ -382,13 +548,12 @@ const quoteDetails = async (page, db, scrapeId, continueToNext) => {
 
     const inputOptions = {
         personalDetails: await personal(page, db, scrapeId, inputRange.quoteDetails.personalDetails),
-        addressDetails: await address(page, db, scrapeId, inputRange.quoteDetails.addressDetails)
+        addressDetails: await address(page, db, scrapeId, inputRange.quoteDetails.addressDetails),
+        bikeDetails: await bikeDetails(page, db, scrapeId, inputRange.quoteDetails.bikeDetails),
+        coverDetails: await coverDetails(page, db, scrapeId, inputRange.quoteDetails.coverDetails)
     };
 
-    console.log('inputOptions: ', inputOptions)
-
-    // await bikeDetails(page, db, scrapeId, inputRange.quoteDetails.bikeDetails);
-    // await coverDetails(page, db, scrapeId, inputRange.quoteDetails.coverDetails);
+    console.log('inputOptions: ', JSON.stringify(inputOptions))
 
     // if (continueToNext) {
     //     await page.click(selectors.continueToNext);
