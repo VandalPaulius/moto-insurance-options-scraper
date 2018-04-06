@@ -1,7 +1,7 @@
 const cwd = require('cwd');
 const utils = require(cwd('utils'));
 
-const personal = async (page, db, scrapeId, inputRange) => {
+const personalScrape = async (page, db, scrapeId, inputRange) => {
     const selectors = {
         titleDropdown: '#ctl00_cphBody_qsProposerPersonalDetails_qTitle_cboAnswer',
         maritalStatus: '#ctl00_cphBody_qsProposerPersonalDetails_qMaritalStatus_cboAnswer',
@@ -125,7 +125,7 @@ const personal = async (page, db, scrapeId, inputRange) => {
     return personalDetails;
 };
 
-const address = async (page, db, scrapeId, inputRange) => {
+const addressScrape = async (page, db, scrapeId, inputRange) => {
     const selectors = {
         postCode: '#ctl00_cphBody_qsAddressDetails_qPostcode_tbAnswer',
         findAddressButton: '#ctl00_cphBody_qsAddressDetails_btnAddressLookupButton_btnAddressLookup',
@@ -253,7 +253,7 @@ const address = async (page, db, scrapeId, inputRange) => {
     return addressDetails;
 };
 
-const bikeDetails = async (page, db, scrapeId, inputRange) => {
+const bikeDetailsScrape = async (page, db, scrapeId, inputRange) => {
     const selectors = {
         knowRegNumber: {
             yes: '#ctl00_cphBody_qsVehicleSelection_qKnowRegNo_rbAnswer1',
@@ -499,7 +499,7 @@ const bikeDetails = async (page, db, scrapeId, inputRange) => {
     return bikeDetailsOptions;
 };
 
-const coverDetails = async (page, db, scrapeId, inputRange) => {
+const coverDetailsScrape = async (page, db, scrapeId, inputRange) => {
     const selectors = {
         coverType: '#ctl00_cphBody_qsCoverDetails_qTypeOfCover_cboAnswer',
         bikeNoClaims: '#ctl00_cphBody_qsCoverDetails_qNCB_cboAnswer',
@@ -539,7 +539,7 @@ const coverDetails = async (page, db, scrapeId, inputRange) => {
     return coverDetailsOptions;
 };
 
-const quoteDetails = async (page, db, scrapeId, continueToNext) => {
+const quoteDetails = async (page, db, scrapeId, continueToNext, scrapeOptions) => {
     const selectors = {
         continueToNext: '#ctl00_btnNext'
     }
@@ -547,10 +547,10 @@ const quoteDetails = async (page, db, scrapeId, continueToNext) => {
     const inputRange = db.getDb()[scrapeId].inputRange;
 
     const inputOptions = {
-        personalDetails: await personal(page, db, scrapeId, inputRange.quoteDetails.personalDetails),
-        addressDetails: await address(page, db, scrapeId, inputRange.quoteDetails.addressDetails),
-        bikeDetails: await bikeDetails(page, db, scrapeId, inputRange.quoteDetails.bikeDetails),
-        coverDetails: await coverDetails(page, db, scrapeId, inputRange.quoteDetails.coverDetails)
+        personalDetails: await personalScrape(page, db, scrapeId, inputRange.quoteDetails.personalDetails),
+        addressDetails: await addressScrape(page, db, scrapeId, inputRange.quoteDetails.addressDetails),
+        bikeDetails: await bikeDetailsScrape(page, db, scrapeId, inputRange.quoteDetails.bikeDetails),
+        coverDetails: await coverDetailsScrape(page, db, scrapeId, inputRange.quoteDetails.coverDetails)
     };
 
     console.log('inputOptions: ', JSON.stringify(inputOptions))
