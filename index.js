@@ -35,8 +35,9 @@ const inputRange = {
                 value: '7'
             },
             ukResidentFrom: {
-                month: 7,
-                year: 2017
+                birth: false,
+                month: '7',
+                year: '2017'
             },
             fullTimeEmployment: {
                 text: 'Employed',
@@ -63,7 +64,7 @@ const inputRange = {
             overNightPostCode: 'SK4 2LC',
             mainPhone: '07954463999',
             additionalPhone: '07954463991',
-            keptAtMainAddress: true,
+            keptAtMainAddress: false,
             address: '285 Green Ln, Stockport'
         },
         bikeDetails: {
@@ -227,7 +228,8 @@ const inputRange = {
     }
 }
 
-const scrape = async (scrapeId) => {
+
+const scrape = async (scrapeId, debug) => {
     console.log('scrape it');
     utils.database.saveToDb({
         type: 'inputRange',
@@ -243,7 +245,10 @@ const scrape = async (scrapeId) => {
     });
     const page = await browser.newPage();
 
-    //page.on('console', msg => console.log('PAGE LOG:', msg.text())); // for debug
+    if (debug) {
+        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    }
+    
     await page.setViewport({width: 1200, height: 500})
     await page.goto(process.env.URL_TO_SCRAPE);
 
@@ -253,8 +258,9 @@ const scrape = async (scrapeId) => {
     await navigation.main.login(page);
     await utils.timing.show(page);
 
+    await navigation.dashboard.removeSuperfluousQuotes(page);
+
     await navigation.dashboard.newQuote(page);
-    await utils.timing.loaded(page);
 
     await navigation.details.quoteDetails(
         page,
@@ -262,41 +268,41 @@ const scrape = async (scrapeId) => {
         scrapeId,
         true
     );
-    // await utils.timing.loaded(page);
-    // await navigation.details.riderDetails(
-    //     page,
-    //     utils.database,
-    //     scrapeId,
-    //     true
-    // );
-    // await utils.timing.loaded(page);
-    // await navigation.details.bikeDetails(
-    //     page,
-    //     utils.database,
-    //     scrapeId,
-    //     true
-    // );
-    // await utils.timing.loaded(page);
-    // await navigation.details.coverDetails(
-    //     page,
-    //     utils.database,
-    //     scrapeId,
-    //     true
-    // );
-    // await utils.timing.loaded(page);
-    // const quotes = await navigation.quotes.getQuotes(
-    //     page,
-    //     utils.database,
-    //     scrapeId
-    // );
+    await utils.timing.loaded(page);
+    await navigation.details.riderDetails(
+        page,
+        utils.database,
+        scrapeId,
+        true
+    );
+    await utils.timing.loaded(page);
+    await navigation.details.bikeDetails(
+        page,
+        utils.database,
+        scrapeId,
+        true
+    );
+    await utils.timing.loaded(page);
+    await navigation.details.coverDetails(
+        page,
+        utils.database,
+        scrapeId,
+        true
+    );
+    await utils.timing.loaded(page);
+    const quotes = await navigation.quotes.getQuotes(
+        page,
+        utils.database,
+        scrapeId
+    );
 
-    // await navigation.main.logout(page, true);
-    // await browser.close();
+    await navigation.main.logout(page, true);
+    await browser.close();
 
-    // return {
-    //     quotes,
-    //     scrapeId
-    // };
+    return {
+        quotes,
+        scrapeId
+    };
 }
 
 const scrapeId = uuidv1();

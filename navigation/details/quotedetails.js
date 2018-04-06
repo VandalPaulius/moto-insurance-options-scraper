@@ -23,7 +23,76 @@ const personal = async (page, db, scrapeId, inputRange) => {
     }
 
     // First column
+    await page.select(
+        selectors.titleDropdown,
+        inputRange.title.value
+    );
 
+    await page.select(
+        selectors.maritalStatus,
+        inputRange.maritalStatus.value
+    );
+
+    const isSelected = await page.evaluate((selector) => {
+        const element = document.querySelector(selector);
+        return element.checked;
+    }, selectors.ukResidentFrom.checkbox);
+
+    if (inputRange.ukResidentFrom.birth && isSelected) {
+        await page.click(selectors.ukResidentFrom.checkbox);
+    } else if (!inputRange.ukResidentFrom.birth && !isSelected) {
+        await page.click(selectors.ukResidentFrom.checkbox);
+    }
+
+    if (inputRange.ukResidentFrom.birth) {
+        await utils.helpers.typeClean(
+            page,
+            selectors.ukResidentFrom.year,
+            inputRange.ukResidentFrom.year
+        );
+
+        await utils.helpers.typeClean(
+            page,
+            selectors.ukResidentFrom.month,
+            inputRange.ukResidentFrom.month
+        );
+    }
+
+    // Second column
+    await page.select(
+        selectors.employmentDropdown,
+        inputRange.fullTimeEmployment.value
+    );
+
+    if (inputRange.partTimeEmploymentLess16Hrs) {
+        await page.click(selectors.partTimeEmployment.yes);
+    } else {
+        await page.click(selectors.partTimeEmployment.no);
+    }
+
+    await page.select(
+        selectors.licenceType,
+        inputRange.licenceType.value
+    );
+
+    await page.select(
+        selectors.licenceType,
+        inputRange.licenceType.value
+    );
+
+
+    await page.select(
+        selectors.howLongLicence.year,
+        inputRange.selectedLicenceLength.year.value
+    );
+    if (inputRange.selectedLicenceLength.year.text === 'Less than 1') {
+        await page.select(
+            selectors.howLongLicence.month,
+            inputRange.selectedLicenceLength.month.value
+        );
+    }
+
+    // option scrape
     const personalDetails = {
         title: await utils.helpers.getOptions(page, selectors.titleDropdown),
         maritalStatus: await utils.helpers.getOptions(page, selectors.maritalStatus),
@@ -33,12 +102,12 @@ const personal = async (page, db, scrapeId, inputRange) => {
                 false
             ],
             month: {
-                from: 1,
-                to: 12
+                from: '1',
+                to: '12'
             },
             year: {
-                from: 1950,
-                to: 2018
+                from: '1950',
+                to: '2018'
             }
         },
         employmentDropdown: await utils.helpers.getOptions(page, selectors.maritalStatus),
@@ -46,20 +115,14 @@ const personal = async (page, db, scrapeId, inputRange) => {
             true,
             false
         ],
-        licenceType: await utils.helpers.getOptions(page, selectors.licenceType)
+        licenceType: await utils.helpers.getOptions(page, selectors.licenceType),
+        selectedLicenceLength: {
+            year: await utils.helpers.getOptions(page, selectors.howLongLicence.year),
+            month: await utils.helpers.getOptions(page, selectors.howLongLicence.month)
+        }
     };
 
-    await page.select(
-        selectors.howLongLicence.year,
-        '1137'
-    );
-
-    personalDetails.selectedLicenceLength = {
-        year: await utils.helpers.getOptions(page, selectors.howLongLicence.year),
-        month: await utils.helpers.getOptions(page, selectors.howLongLicence.month)
-    };
-    
-    return personalDetails
+    return personalDetails;
 };
 
 const address = async (page, db, scrapeId, inputRange) => {
@@ -158,6 +221,36 @@ const address = async (page, db, scrapeId, inputRange) => {
             inputRange.overNightPostCode
         );
     }
+
+    // option scrape
+    const addressDetails = {
+        postCode: {
+            example: 'SK4 2LZ',
+            value: ['']
+        },
+        overNightPostCode: {
+            example: 'SK4 2LC',
+            value: ['']
+        },
+        mainPhone: {
+            example: '07954463999',
+            value: ['']
+        },
+        additionalPhone: {
+            example: '07954463991',
+            value: ['']
+        },
+        address: {
+            example: '285 Green Ln, Stockport',
+            value: ['']
+        },
+        keptAtMainAddress: [
+            true,
+            false
+        ]
+    };
+
+    return addressDetails;
 };
 
 const bikeDetails = async (page, db, scrapeId, inputRange) => {
@@ -287,14 +380,19 @@ const quoteDetails = async (page, db, scrapeId, continueToNext) => {
 
     const inputRange = db.getDb()[scrapeId].inputRange;
 
-    await personal(page, db, scrapeId, inputRange.quoteDetails.personalDetails);
-    await address(page, db, scrapeId, inputRange.quoteDetails.addressDetails);
-    await bikeDetails(page, db, scrapeId, inputRange.quoteDetails.bikeDetails);
-    await coverDetails(page, db, scrapeId, inputRange.quoteDetails.coverDetails);
+    const inputOptions = {
+        personalDetails: await personal(page, db, scrapeId, inputRange.quoteDetails.personalDetails),
+        addressDetails: await address(page, db, scrapeId, inputRange.quoteDetails.addressDetails)
+    };
 
-    if (continueToNext) {
-        await page.click(selectors.continueToNext);
-    }
+    console.log('inputOptions: ', inputOptions)
+
+    // await bikeDetails(page, db, scrapeId, inputRange.quoteDetails.bikeDetails);
+    // await coverDetails(page, db, scrapeId, inputRange.quoteDetails.coverDetails);
+
+    // if (continueToNext) {
+    //     await page.click(selectors.continueToNext);
+    // }
 };
 
 module.exports = quoteDetails;
